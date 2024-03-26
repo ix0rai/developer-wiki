@@ -1,8 +1,3 @@
----
-title: Advanced Configuring
-index: 2
----
-
 # Advanced configuring
 
 Simple values are nice and all, but if you have a lot of them it can begin to get unwieldy. In this tutorial, we'll discuss how to organize your config and use processors to get the most out of it.

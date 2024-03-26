@@ -27,6 +27,8 @@ Now that big line in the middle may seem intimidating, but we're going to break 
   - A second string, `id`, which will be the name of the configuration file (before the file extension is added, which changes depending on the format you choose). Here we use our mod ID once again, but if you have a complicated config with multiple files you'll want to use a different name.
   - Finally, something confusing: what is a `Class<C> configCreatorClass`? We're not going to worry too much about the details: just pass in the name of your config class with `.class` appended, as we've done here with `ExampleModConfig.class`.
 
+If you're not making a mod, reference the [Using Quilt Config Outside of Quilt Mods](https://wiki.quiltmc.org/en/configuration/outside-quilt-mods) tutorial for more information on setting up Quilt Config in a non-mod environment.
+
 ## Adding values
 
 That's it! We now have a config that we can access anywhere in our project. Problem is, there's no reason to access it because there's nothing there. Let's fix that by adding a value! Our example mod prints a line of text to the console when started up: why don't we allow the user to decide what that line is. Let's add a second field to our config:
