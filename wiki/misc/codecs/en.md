@@ -1,37 +1,32 @@
 # Codecs
 
-**WARNING**: This tutorial expects a strong understanding of both Java basics and generics.
+**WARNING**: This tutorial expects a strong understanding of Java generics.
 
-The `Codec` class from [DataFixerUpper](https://github.com/Mojang/DataFixerUpper) is the backbone of content serialization and deserialization.
-It provides an abstraction layer between Java Objects and serialization types, such as `json`, `nbt`, and more.
-Each `Codec` is made of a `Encoder` and a `Decoder`, but you rarely need to create a raw `Codec` from scratch.
-Let's start off with the primitive `Codec`s.
+The `Codec` class from [DataFixerUpper](https://github.com/Mojang/DataFixerUpper) is the backbone of content serialization and deserialization in Minecraft.
+It provides an abstraction layer between Java Objects and serialization types, such as [`json`](https://minecraft.wiki/w/JSON), [`nbt`](https://minecraft.wiki/w/NBT_format), and more.
+Internally, each `Codec` uses an `Encoder` and a `Decoder` to write and read the data respectively.
+Mojang provides us with utilities for creating codecs, which means we won't have to worry about making our own encoders and decoders.
 
-<!-- TODO: Is this div needed? The basic example is getting pushed to the bottom of the page for some reason -->
-<div>
 ## Primitive Codecs
 
-Mojang thankfully builds in many default `Codec` implementations, making our lives easier as most objects are composed of these few types.
-We will cover building `Codec`s composed of other `Codec`s later on.
-It'll be important to understand the basics.
+There are default `Codec` implementations for most of the [primitive types](https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html), which greatly simplifies creating `Codec`s.
+Combining these types will allow us to serialize any object, no matter how complex. Before we do so, we need to get familiar with how to use one of these primitive codecs
 
-A non-exhaustive list of `Codec`s:
-- `Codec.BOOL`: A `boolean` codec.
-- `Codec.BYTE`: A `byte` codec.
-- `Codec.SHORT`: A `short` codec.
-- `Codec.INT`: An `int` codec.
-    - `Codec<Integer> Codec.intRange(int min, int maxInc)`: An `int` codec with an inclusive range.
-- `Codec.LONG`: A `long` codec.
-- `Codec.FLOAT`: A `float` codec.
-    - `Codec<Float> Codec.floatRange(float min, float maxInc)`: A `float` codec with an inclusive range.
-- `Codec.DOUBLE`: A `double` codec.
-    - `Codec<Double> Codec.doubleRange(double min, double maxInc)`: An `double` codec with an inclusive range.
-- `Codec.STRING`: A `string` codec.
+The most important codecs are those for the primitive types:
+- `Codec.BOOL`
+- `Codec.BYTE`
+- `Codec.SHORT`
+- `Codec.INT`
+- `Codec.LONG`
+- `Codec.FLOAT`
+- `Codec.DOUBLE`
+- `Codec.STRING`
 
-"Ok", you tell me, "Thats cool. But... I still don't know what codecs are for or how to use them".
+The keen eyed may have noticed that `String` is standing in for `char`. Since a string can be used to represent a single character, there's no need to have a separate codec for `char`.
+Now that we know what tools are available to us, let's find out how to use them!
 
-### Basic Codec Example
-Let's go over a very basic example:
+## Basic Codec Example
+To start, here's the simplest possible usage of a `Codec` to decode data:
 
 ```java
 boolean bool = 
@@ -42,32 +37,28 @@ boolean bool =
         .result()
         .get()
         .getFirst();
-
-assert bool;
 ```
 
-WOAH! That doesn't look simple *at all*. What happened?
-
-Well, using `Codec`s is fairly verbose, but that means you get a lot of useful information to help with errors and such, which is important for Mojang to provide in their library since we want to know why Minecraft failed to load something, not just that it failed.
-
-Now, lets break this down into a couple sections.
+For a simple example, that doesn't look simple *at all*!
+Using `Codec`s is fairly verbose, but that means you get a lot of useful information to help with errors and such, which is important for Mojang to provide since we want to know why Minecraft failed to load something, not just that it failed.
+Now, let's break down how this works.
 
 First off:
 ```java
+[...]
 Codec.BOOL.decode(
     JsonOps.INSTANCE, // DynamicOps<T> ops
     new JsonPrimitive(true) // T input
-) // DataResult<Pair<Boolean, JsonElement>>
-...
+) // returns a DataResult<Pair<Boolean, JsonElement>>
+[...]
 ```
-The `decode` method on a codec takes two values, an `ops` and an `input`.
+The `decode` method on a codec takes two values, a `DynamicOps<?>` instance and an input.
 As shown in the comments above, the type of the input and a generic parameter on `ops` must match.
-This is because the `ops` needs to know about how the `input` functions.
-In this example, we use `com.mojang.serialization.JsonOps.INSTANCE`, which operates on JSON elements from `gson`.
+In this example, we use `com.mojang.serialization.JsonOps.INSTANCE`, which operates on JSON elements using [GSON](https://github.com/google/gson).
 We then pass in a `JsonPrimitive` with a value of `true` for this example.
 
 Finally, the `com.mojang.serialization.DataResult<Pair<A, T>>` type allows us to encode more information than just the result.
-First off, the `A` type is the output of the `Codec`, which is `Boolean` in this case, and the `T` is the same as the input.
+First off, the `A` type is the output of the `Codec`, which is the parsed `Boolean` with a value of `true`, and the `T` is the same as the input: our JSON data with a value of `true`.
 
 Let's look more into the `DataResult`:
 ```java
@@ -76,33 +67,28 @@ Let's look more into the `DataResult`:
 ...
 ```
 
-Ok, this starts to make more sense. 
-`DataResult` has a lot of associated methods on it, but for now let's only cover two: `result` and `error`.
-`error` returns a `PartialResult`, which allows you to both recover a decode, and to get the error message for why the decode failed. Right now, the `result` method is more important to us.
-`result` returns an `Option<Pair<A, T>>`, which makes sure that we know for sure if we have a result, otherwise we could just get null.
+`DataResult` has a lot of associated methods, but the two most important are `result` and `error`.
+`error` returns a `PartialResult`, which allows you to both recover a decode attempt, and to get the error message for why decoding failed.
+`result` returns an `Optional<A, T>`, which provides the parsed data along with the input if decoding was successful.
 
-Finally, we get to the last two lines:
+Now that we have the result, we get to the last two lines:
 ```java
 ...
 .get() // Pair<Boolean, JsonElement>
 .getFirst(); // Boolean
 ```
 
-We use `get` to unbox the `Option`. Generally this is unsafe to do, an IntelliJ even gives a warning.
-In this case we know that it is safe due to the simplicity of the example.
-Then finally, we call `getFirst` on `com.mojang.datafixers.util.Pair` to get the first half of the pair
+We use `get` to unbox the `Optional`. When using a `Codec` on data you're not sure will successfully parse, this is unsafe to do.
+In this case, we don't have to verify that the `Optional` contains data, since we directly sent in a boolean value.
+If we were sourcing this boolean from a user-facing config file, for example, we would need to verify the value's presence before getting it.
+Then finally, we call `getFirst` on `com.mojang.datafixers.util.Pair` to get the first half of the pair: our parsed boolean.
 
-Wow. That sure was a lot. Fortunately, most of time you only need to provide the `Codec`, and Minecraft will do the (de)serialization for you.
+When working with Minecraft, most of the time you only need to provide the `Codec`, and Minecraft will do the (de)serialization for you.
+Now that we know how to use a `Codec` and understand the classes associated with it, let's move on to building complex `Codec`s.
 
+## Collection Codecs // TODO
 
-Now, this may seem like the `Codec` system is complicated right now, and you would be right. We have only scratched the surface of how powerful codecs are. However, I hope you are beginning to see the masterpiece that they are.
-
-Let's step back and look at some more `Codec` types.
-</div>
-
-## Collection Codecs
-
-While the primative `Codec`s are the most basic building blocks for `Codec`s, we need to we able to put them together to be able to fully represent serializable objects.
+While the primitive `Codec`s are the most basic building blocks for `Codec`s, we need to we able to put them together to be able to fully represent serializable objects.
 These collection `Codec`s are fairly straight forward, and each has a constructor which takes a `Codec` parameter for each associated type with the collection.
 
 <!-- TODO: Use the static methods instead of the classes -->
